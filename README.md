@@ -6,11 +6,21 @@ This repository contains the implementation of a Transformer-based model with th
 
 ## Imputation Visualization
 
-### SAND Imputation
-![SAND Imputation](sand_imputation.gif)
+<div style="display: flex; justify-content: space-around; align-items: center;">
 
-### Standard Transformer Imputation
-![Transformer Imputation](transformer_imputation.gif)
+  <!-- SAND Imputation GIF -->
+  <div style="text-align: center;">
+    <img src="SAND_imputation.gif" alt="SAND Imputation" width="400" height="auto">
+    <p>SAND Imputation</p>
+  </div>
+
+  <!-- Standard Transformer Imputation GIF -->
+  <div style="text-align: center;">
+    <img src="transformer_imputation.gif" alt="Transformer Imputation" width="400" height="auto">
+    <p>Transformer Imputation</p>
+  </div>
+
+</div>
 
 ---
 
