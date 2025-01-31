@@ -1,4 +1,16 @@
-# Essential imports
+# Standard library imports
+import os
+import re
+from statistics import median
+
+# Scientific computing and data analysis
+import numpy as np
+import pandas as pd
+
+# Visualization
+import matplotlib.pyplot as plt
+
+# Deep learning framework
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -116,16 +128,14 @@ class FeedForward(nn.Module):
         """
         if useReLU:
             # Apply ReLU activation and residual connections
-            x_ = F.relu(self.lin1(x))
-            x_ = x_ + F.relu(self.lin2(x_))  # First residual connection
+            x_ = x_ + F.relu(self.lin1(x_))  # First residual connection
             x_ = self.norm1(x_)
             x_ = x_ + F.relu(self.lin2(self.drop1(x_)))  # Second residual connection
             x_ = self.norm2(x_)
             x_ = F.relu(self.lin3(self.drop2(x_)))
         else:
             # Apply GELU activation and residual connections
-            x_ = F.gelu(self.lin1(x))
-            x_ = x_ + F.gelu(self.lin2(x_))  # First residual connection
+            x_ = x_ + F.gelu(self.lin1(x_))  # First residual connection
             x_ = self.norm1(x_)
             x_ = x_ + F.gelu(self.lin2(self.drop1(x_)))  # Second residual connection
             x_ = self.norm2(x_)
@@ -133,3 +143,132 @@ class FeedForward(nn.Module):
 
         # Final normalization
         return self.norm3(x_)
+
+def plot_imputations(i, X_obs, T_obs, VT_imp=None, SAND_imp=None, X_den=None, figsize=(10, 6)):
+    """
+    Plot observed data points, imputations, and ground truth for a given index.
+    
+    Args:
+        i (int): Index of the sequence to plot
+        X_obs (pd.DataFrame): Observed values DataFrame
+        T_obs (pd.DataFrame): Observed timepoints DataFrame
+        VT_imp (np.ndarray, optional): Vanilla Transformer imputations
+        SAND_imp (np.ndarray, optional): SAND imputations
+        X_den (np.ndarray, optional): Ground truth values
+        figsize (tuple): Figure size (width, height)
+    """
+    plt.figure(figsize=figsize)
+    
+    # Get observed data for index i
+    n_obs = int(X_obs.iloc[i, 0])  # Number of observations
+    x_vals = X_obs.iloc[i, 1:n_obs+1].values  # Observed values
+    t_vals = T_obs.iloc[i, :n_obs].values  # Observed timepoints
+    
+    # Plot observed data points
+    plt.scatter(t_vals, x_vals, color='black', label='Observations', zorder=5)
+    
+    # If imputations are provided, plot them
+    if VT_imp is not None or SAND_imp is not None or X_den is not None:
+        # Generate imputation grid
+        unique_times = np.sort(np.unique(T_obs[T_obs != 0].values))
+        L = len(unique_times)
+        t_grid = np.linspace(0, 1, L)
+    
+    # Plot ground truth if provided
+    if X_den is not None:
+        plt.plot(t_grid, X_den[i], label='Ground Truth', 
+                linestyle=':', color='black', alpha=0.7)
+    
+    # Plot Vanilla Transformer imputations if provided
+    if VT_imp is not None:
+        plt.plot(t_grid, VT_imp[i], label='Vanilla Transformer', 
+                linestyle='--', color='blue', alpha=0.7)
+    
+    # Plot SAND imputations if provided
+    if SAND_imp is not None:
+        plt.plot(t_grid, SAND_imp[i], label='SAND',
+                linestyle='-', color='red', alpha=0.7)
+    
+    # Customize plot
+    plt.xlabel('Time')
+    plt.ylabel('Value')
+    plt.title(f'Sequence {i}: Observed Data and Imputations')
+    plt.grid(True, alpha=0.3)
+    plt.legend()
+    
+    # Set reasonable axis limits
+    all_x_values = [x_vals]
+    if VT_imp is not None:
+        all_x_values.append(VT_imp[i])
+    if SAND_imp is not None:
+        all_x_values.append(SAND_imp[i])
+    if X_den is not None:
+        all_x_values.append(X_den[i])
+    
+    x_min = min(np.concatenate(all_x_values))
+    x_max = max(np.concatenate(all_x_values))
+    y_padding = (x_max - x_min) * 0.1
+    
+    plt.ylim(x_min - y_padding, x_max + y_padding)
+    plt.xlim(-0.02, 1.02)  # Slight padding on time axis
+    
+    plt.show()
+
+def find_largest_number_in_filenames(folder_path):
+    """
+    Find the largest number in filenames matching pattern 'XX_number.pth'
+    where the file size is larger than half of the median file size.
+    
+    Args:
+        folder_path (str): Path to the folder containing the files
+        
+    Returns:
+        int: Largest number found in filenames meeting the criteria, or 0 if no matching files
+        
+    Raises:
+        FileNotFoundError: If the folder_path doesn't exist
+    """
+    # Check if folder exists
+    if not os.path.exists(folder_path):
+        raise FileNotFoundError(f"Folder not found: {folder_path}")
+        
+    # List all files in the directory
+    files = os.listdir(folder_path)
+    
+    # Store file information (number and size) for matching files
+    file_info = []
+    for filename in files:
+        if filename.endswith('.pth'):
+            match = re.search(r'_(\d+)\.pth$', filename)
+            if match:
+                try:
+                    file_path = os.path.join(folder_path, filename)
+                    file_size = os.path.getsize(file_path)
+                    number = int(match.group(1))
+                    file_info.append({
+                        'number': number,
+                        'size': file_size,
+                        'filename': filename
+                    })
+                except (OSError, ValueError) as e:
+                    print(f"Warning: Error processing file {filename}: {e}")
+                    continue
+    
+    # Return 0 if no matching files found
+    if not file_info:
+        return 0
+    
+    try:
+        # Calculate threshold (half of median file size)
+        median_size = median([f['size'] for f in file_info])
+        size_threshold = median_size / 2
+        
+        # Filter for files larger than threshold and get their numbers
+        numbers = [f['number'] for f in file_info if f['size'] > size_threshold]
+        
+        # Return the largest number if found, 0 otherwise
+        return max(numbers) if numbers else 0
+        
+    except Exception as e:
+        print(f"Warning: Error calculating result: {e}")
+        return 0
