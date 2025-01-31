@@ -104,16 +104,19 @@ class FeedForward(nn.Module):
         # Linear layers for transformations
         self.lin1 = nn.Linear(f_in, self.hidden)
         self.lin2 = nn.Linear(self.hidden, self.hidden)
-        self.lin3 = nn.Linear(self.hidden, f_out)
+        self.lin3 = nn.Linear(self.hidden, self.hidden)
+        self.lin4 = nn.Linear(self.hidden, f_out)
 
         # Normalization layers for stability
         self.norm1 = Norm(self.hidden, axis=-1)
         self.norm2 = Norm(self.hidden, axis=-1)
-        self.norm3 = Norm(f_out, axis=-1)
+        self.norm3 = Norm(self.hidden, axis=-1)
+        self.norm4 = Norm(f_out, axis=-1)
 
         # Dropout layers for regularization
         self.drop1 = nn.Dropout(dropout)
         self.drop2 = nn.Dropout(dropout)
+        self.drop3 = nn.Dropout(dropout)
 
     def forward(self, x, useReLU=True):
         """
@@ -128,21 +131,25 @@ class FeedForward(nn.Module):
         """
         if useReLU:
             # Apply ReLU activation and residual connections
-            x_ = x_ + F.relu(self.lin1(x_))  # First residual connection
+            x_ = F.relu(self.lin1(x))
             x_ = self.norm1(x_)
-            x_ = x_ + F.relu(self.lin2(self.drop1(x_)))  # Second residual connection
+            x_ = x_ + F.relu(self.lin2(self.drop1(x_)))  # First residual connection
             x_ = self.norm2(x_)
-            x_ = F.relu(self.lin3(self.drop2(x_)))
+            x_ = x_ + F.relu(self.lin3(self.drop2(x_)))  # Second residual connection
+            x_ = self.norm3(x_)
+            x_ = F.relu(self.lin4(self.drop3(x_)))
         else:
             # Apply GELU activation and residual connections
-            x_ = x_ + F.gelu(self.lin1(x_))  # First residual connection
+            x_ = F.gelu(self.lin1(x))
             x_ = self.norm1(x_)
-            x_ = x_ + F.gelu(self.lin2(self.drop1(x_)))  # Second residual connection
+            x_ = x_ + F.gelu(self.lin2(self.drop1(x_)))  # First residual connection
             x_ = self.norm2(x_)
-            x_ = F.gelu(self.lin3(self.drop2(x_)))
+            x_ = x_ + F.gelu(self.lin3(self.drop2(x_)))  # Second residual connection
+            x_ = self.norm3(x_)
+            x_ = F.gelu(self.lin4(self.drop3(x_)))
 
         # Final normalization
-        return self.norm3(x_)
+        return self.norm4(x_)
 
 def plot_imputations(i, X_obs, T_obs, VT_imp=None, SAND_imp=None, X_den=None, figsize=(10, 6)):
     """
