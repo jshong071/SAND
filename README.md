@@ -1,6 +1,6 @@
 # Transformer with SAND for Functional Data Imputation
 
-This repository contains the implementation of a Transformer-based model with the **SAND (Self-Attention on Derivatives)** module, designed for imputing functional data. The architecture maintains smooth imputations by incorporating inductive biases for smoothness, and supports irregularly sampled data.
+This repository contains the implementation of a Transformer-based model with the **SAND (Self-Attention on Derivatives)** module, designed for imputing functional data (https://openreview.net/forum?id=MXRO5kukST). The architecture maintains smooth imputations by incorporating inductive biases for smoothness, and supports irregularly sampled data.
 
 ---
 
